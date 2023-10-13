@@ -114,6 +114,7 @@ dds <- DESeqDataSetFromMatrix(countData = rm_low_counts,
 dds_obj <- DESeq(dds)
 resultsNames(dds_obj)
 results <- results(dds_obj, format = "DataFrame", contrast = c("definition",'Primary solid Tumor', 'Solid Tissue Normal'))
+
 # Analyzing results
 results <- data.frame(rm_low_genes$gene_name, results@rownames,
                       results$log2FoldChange, results$pvalue, 

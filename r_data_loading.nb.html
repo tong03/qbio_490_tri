@@ -1760,39 +1760,81 @@ the chunk or by placing your cursor inside it and pressing
 <em>Ctrl+Shift+Enter</em>.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGxvdChjYXJzKVxuYGBgIn0= -->
-<pre class="r"><code>plot(cars)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p>\wsl.localhost_490_tritong</p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxua25pdHI6Om9wdHNfa25pdCRzZXQocm9vdC5kaXIgPSBub3JtYWxpemVQYXRoKFwiXFxcXFxcXFx3c2wubG9jYWxob3N0L1VidW50dS9ob21lL3RyaS9xYmlvXzQ5MF90cml0b25nL2FuYWx5c2lzX2RhdGFcIikpXG5gYGAifQ== -->
-<pre class="r"><code>knitr::opts_knit$set(root.dir = normalizePath(&quot;\\\\wsl.localhost/Ubuntu/home/tri/qbio_490_tritong/analysis_data&quot;))</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaWYgKCFyZXF1aXJlKFwiQmlvY01hbmFnZXJcIiwgcXVpZXRseSA9IFRSVUUpKVxuaW5zdGFsbC5wYWNrYWdlcyhcIkJpb2NNYW5hZ2VyXCIpXG5CaW9jTWFuYWdlcjo6aW5zdGFsbCh2ZXJzaW9uID0gXCIzLjE3XCIpXG5pZiAoIXJlcXVpcmUoXCJUQ0dBYmlvbGlua3NcIiwgcXVpZXRseSA9IFRSVUUpKVxuQmlvY01hbmFnZXI6Omluc3RhbGwoXCJUQ0dBYmlvbGlua3NcIilcbmlmICghcmVxdWlyZShcIm1hZnRvb2xzXCIsIHF1aWV0bHkgPSBUUlVFKSlcbkJpb2NNYW5hZ2VyOjppbnN0YWxsKFwibWFmdG9vbHNcIilcbmxpYnJhcnkoQmlvY01hbmFnZXIpXG5saWJyYXJ5KFRDR0FiaW9saW5rcylcbmxpYnJhcnkobWFmdG9vbHMpXG5gYGAifQ== -->
-<pre class="r"><code>if (!require(&quot;BiocManager&quot;, quietly = TRUE))
-install.packages(&quot;BiocManager&quot;)
-BiocManager::install(version = &quot;3.17&quot;)
-if (!require(&quot;TCGAbiolinks&quot;, quietly = TRUE))
-BiocManager::install(&quot;TCGAbiolinks&quot;)
-if (!require(&quot;maftools&quot;, quietly = TRUE))
-BiocManager::install(&quot;maftools&quot;)
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYGBgclxucGxvdChjYXJzKVxuYGBgXG5gYGAifQ== -->
+<pre class="r"><code>```r
+plot(cars)</code></pre>
+<pre><code>
+&lt;!-- rnb-source-end --&gt;
+
+&lt;!-- rnb-chunk-end --&gt;
+
+
+&lt;!-- rnb-text-begin --&gt;
+
+\\wsl.localhost\Ubuntu\home\tri\qbio_490_tritong
+
+
+&lt;!-- rnb-text-end --&gt;
+
+
+&lt;!-- rnb-chunk-begin --&gt;
+
+
+&lt;!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYGBgclxua25pdHI6Om9wdHNfa25pdCRzZXQocm9vdC5kaXIgPSBub3JtYWxpemVQYXRoKFxcXFxcXFxcXFx3c2wubG9jYWxob3N0L1VidW50dS9ob21lL3RyaS9xYmlvXzQ5MF90cml0b25nL2FuYWx5c2lzX2RhdGFcXCkpXG5gYGBcbmBgYCJ9 --&gt;
+
+```r
+```r
+knitr::opts_knit$set(root.dir = normalizePath(\\\\\wsl.localhost/Ubuntu/home/tri/qbio_490_tritong/analysis_data\))</code></pre>
+<pre><code>
+&lt;!-- rnb-source-end --&gt;
+
+&lt;!-- rnb-chunk-end --&gt;
+
+
+&lt;!-- rnb-text-begin --&gt;
+
+
+
+&lt;!-- rnb-text-end --&gt;
+
+
+&lt;!-- rnb-chunk-begin --&gt;
+
+
+&lt;!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYGBgclxuaWYgKCFyZXF1aXJlKFxcQmlvY01hbmFnZXJcXCwgcXVpZXRseSA9IFRSVUUpKVxuaW5zdGFsbC5wYWNrYWdlcyhcXEJpb2NNYW5hZ2VyXFwpXG5CaW9jTWFuYWdlcjo6aW5zdGFsbCh2ZXJzaW9uID0gXFwzLjE3XFwpXG5pZiAoIXJlcXVpcmUoXFxUQ0dBYmlvbGlua3NcXCwgcXVpZXRseSA9IFRSVUUpKVxuQmlvY01hbmFnZXI6Omluc3RhbGwoXFxUQ0dBYmlvbGlua3NcXClcbmlmICghcmVxdWlyZShcXG1hZnRvb2xzXFwsIHF1aWV0bHkgPSBUUlVFKSlcbkJpb2NNYW5hZ2VyOjppbnN0YWxsKFxcbWFmdG9vbHNcXClcbmxpYnJhcnkoQmlvY01hbmFnZXIpXG5saWJyYXJ5KFRDR0FiaW9saW5rcylcbmxpYnJhcnkobWFmdG9vbHMpXG5gYGBcbmBgYCJ9 --&gt;
+
+```r
+```r
+if (!require(\BiocManager\, quietly = TRUE))
+install.packages(\BiocManager\)
+BiocManager::install(version = \3.17\)
+if (!require(\TCGAbiolinks\, quietly = TRUE))
+BiocManager::install(\TCGAbiolinks\)
+if (!require(\maftools\, quietly = TRUE))
+BiocManager::install(\maftools\)
 library(BiocManager)
 library(TCGAbiolinks)
 library(maftools)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY2xpbl9xdWVyeSA8LSBHRENxdWVyeShwcm9qZWN0ID0gXCJUQ0dBLUJSQ0FcIixcbmRhdGEuY2F0ZWdvcnkgPSBcIkNsaW5pY2FsXCIsXG5kYXRhLnR5cGUgPSBcIkNsaW5pY2FsIFN1cHBsZW1lbnRcIixcbmRhdGEuZm9ybWF0ID0gJ0JDUiBCaW90YWInKVxuI0dEQ2Rvd25sb2FkKGNsaW5fcXVlcnkpXG5jbGluaWNhbC5CQ1J0YWIuYWxsIDwtIEdEQ3ByZXBhcmUoY2xpbl9xdWVyeSlcbmNsaW5pYyA8LSBjbGluaWNhbC5CQ1J0YWIuYWxsJGNsaW5pY2FsX3BhdGllbnRfYnJjYVstYygxLDIpLF1cbmBgYCJ9 -->
-<pre class="r"><code>clin_query &lt;- GDCquery(project = &quot;TCGA-BRCA&quot;,
+<pre><code>
+&lt;!-- rnb-source-end --&gt;
+
+&lt;!-- rnb-chunk-end --&gt;
+
+
+&lt;!-- rnb-text-begin --&gt;
+
+
+
+&lt;!-- rnb-text-end --&gt;
+
+
+&lt;!-- rnb-chunk-begin --&gt;
+
+
+&lt;!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY2xpbl9xdWVyeSA8LSBHRENxdWVyeShwcm9qZWN0ID0gXCJUQ0dBLUJSQ0FcIixcbmRhdGEuY2F0ZWdvcnkgPSBcIkNsaW5pY2FsXCIsXG5kYXRhLnR5cGUgPSBcIkNsaW5pY2FsIFN1cHBsZW1lbnRcIixcbmRhdGEuZm9ybWF0ID0gJ0JDUiBCaW90YWInKVxuI0dEQ2Rvd25sb2FkKGNsaW5fcXVlcnkpXG5jbGluaWNhbC5CQ1J0YWIuYWxsIDwtIEdEQ3ByZXBhcmUoY2xpbl9xdWVyeSlcbmNsaW5pYyA8LSBjbGluaWNhbC5CQ1J0YWIuYWxsJGNsaW5pY2FsX3BhdGllbnRfYnJjYVstYygxLDIpLF1cbmBgYCJ9 --&gt;
+
+```r
+clin_query &lt;- GDCquery(project = &quot;TCGA-BRCA&quot;,
 data.category = &quot;Clinical&quot;,
 data.type = &quot;Clinical Supplement&quot;,
 data.format = &#39;BCR Biotab&#39;)
@@ -1804,33 +1846,49 @@ clinic &lt;- clinical.BCRtab.all$clinical_patient_brca[-c(1,2),]</code></pre>
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY29sbmFtZXMoY2xpbmljKVsgY29sbmFtZXMoY2xpbmljKSA9PSBcImJjcl9wYXRpZW50X2JhcmNvZGVcIiBdIDwtXG5cIlR1bW9yX1NhbXBsZV9CYXJjb2RlXCJcbm1hZl9xdWVyeSA8LSBHRENxdWVyeShcbnByb2plY3QgPSBcIlRDR0EtQlJDQVwiLFxuZGF0YS5jYXRlZ29yeSA9IFwiU2ltcGxlIE51Y2xlb3RpZGUgVmFyaWF0aW9uXCIsXG5hY2Nlc3MgPSBcIm9wZW5cIixcbmRhdGEudHlwZSA9IFwiTWFza2VkIFNvbWF0aWMgTXV0YXRpb25cIixcbndvcmtmbG93LnR5cGUgPSBcIkFsaXF1b3QgRW5zZW1ibGUgU29tYXRpYyBWYXJpYW50IE1lcmdpbmcgYW5kIE1hc2tpbmdcIlxuKVxuI0dEQ2Rvd25sb2FkKG1hZl9xdWVyeSlcbm1hZiA8LSBHRENwcmVwYXJlKG1hZl9xdWVyeSlcbm1hZl9vYmplY3QgPC0gcmVhZC5tYWYobWFmID0gbWFmLFxuY2xpbmljYWxEYXRhID0gY2xpbmljLFxuaXNUQ0dBID0gVFJVRSlcbmBgYCJ9 -->
-<pre class="r"><code>colnames(clinic)[ colnames(clinic) == &quot;bcr_patient_barcode&quot; ] &lt;-
-&quot;Tumor_Sample_Barcode&quot;
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYGBgclxuY29sbmFtZXMoY2xpbmljKVsgY29sbmFtZXMoY2xpbmljKSA9PSBcXGJjcl9wYXRpZW50X2JhcmNvZGVcXCBdIDwtXG5cXFR1bW9yX1NhbXBsZV9CYXJjb2RlXFxcbm1hZl9xdWVyeSA8LSBHRENxdWVyeShcbnByb2plY3QgPSBcXFRDR0EtQlJDQVxcLFxuZGF0YS5jYXRlZ29yeSA9IFxcU2ltcGxlIE51Y2xlb3RpZGUgVmFyaWF0aW9uXFwsXG5hY2Nlc3MgPSBcXG9wZW5cXCxcbmRhdGEudHlwZSA9IFxcTWFza2VkIFNvbWF0aWMgTXV0YXRpb25cXCxcbndvcmtmbG93LnR5cGUgPSBcXEFsaXF1b3QgRW5zZW1ibGUgU29tYXRpYyBWYXJpYW50IE1lcmdpbmcgYW5kIE1hc2tpbmdcXFxuKVxuI0dEQ2Rvd25sb2FkKG1hZl9xdWVyeSlcbm1hZiA8LSBHRENwcmVwYXJlKG1hZl9xdWVyeSlcbm1hZl9vYmplY3QgPC0gcmVhZC5tYWYobWFmID0gbWFmLFxuY2xpbmljYWxEYXRhID0gY2xpbmljLFxuaXNUQ0dBID0gVFJVRSlcbmBgYFxuYGBgIn0= -->
+<pre class="r"><code>```r
+colnames(clinic)[ colnames(clinic) == \bcr_patient_barcode\ ] &lt;-
+\Tumor_Sample_Barcode\
 maf_query &lt;- GDCquery(
-project = &quot;TCGA-BRCA&quot;,
-data.category = &quot;Simple Nucleotide Variation&quot;,
-access = &quot;open&quot;,
-data.type = &quot;Masked Somatic Mutation&quot;,
-workflow.type = &quot;Aliquot Ensemble Somatic Variant Merging and Masking&quot;
+project = \TCGA-BRCA\,
+data.category = \Simple Nucleotide Variation\,
+access = \open\,
+data.type = \Masked Somatic Mutation\,
+workflow.type = \Aliquot Ensemble Somatic Variant Merging and Masking\
 )
 #GDCdownload(maf_query)
 maf &lt;- GDCprepare(maf_query)
 maf_object &lt;- read.maf(maf = maf,
 clinicalData = clinic,
 isTCGA = TRUE)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucm5hX3F1ZXJ5IDwtIEdEQ3F1ZXJ5KHByb2plY3QgPVwiVENHQS1CUkNBXCIsXG5kYXRhLmNhdGVnb3J5ID0gXCJUcmFuc2NyaXB0b21lIFByb2ZpbGluZ1wiLFxuZGF0YS50eXBlID0gXCJHZW5lIEV4cHJlc3Npb24gUXVhbnRpZmljYXRpb25cIixcbndvcmtmbG93LnR5cGUgPSBcIlNUQVIgLSBDb3VudHNcIilcbkdEQ2Rvd25sb2FkKHJuYV9xdWVyeSlcbnJuYV9zZSA8LSBHRENwcmVwYXJlKHJuYV9xdWVyeSlcbmBgYCJ9 -->
-<pre class="r"><code>rna_query &lt;- GDCquery(project =&quot;TCGA-BRCA&quot;,
-data.category = &quot;Transcriptome Profiling&quot;,
-data.type = &quot;Gene Expression Quantification&quot;,
-workflow.type = &quot;STAR - Counts&quot;)
+<pre><code>
+&lt;!-- rnb-source-end --&gt;
+
+&lt;!-- rnb-chunk-end --&gt;
+
+
+&lt;!-- rnb-text-begin --&gt;
+
+
+
+&lt;!-- rnb-text-end --&gt;
+
+
+&lt;!-- rnb-chunk-begin --&gt;
+
+
+&lt;!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYGBgclxucm5hX3F1ZXJ5IDwtIEdEQ3F1ZXJ5KHByb2plY3QgPVxcVENHQS1CUkNBXFwsXG5kYXRhLmNhdGVnb3J5ID0gXFxUcmFuc2NyaXB0b21lIFByb2ZpbGluZ1xcLFxuZGF0YS50eXBlID0gXFxHZW5lIEV4cHJlc3Npb24gUXVhbnRpZmljYXRpb25cXCxcbndvcmtmbG93LnR5cGUgPSBcXFNUQVIgLSBDb3VudHNcXClcbkdEQ2Rvd25sb2FkKHJuYV9xdWVyeSlcbnJuYV9zZSA8LSBHRENwcmVwYXJlKHJuYV9xdWVyeSlcbmBgYFxuYGBgIn0= --&gt;
+
+```r
+```r
+rna_query &lt;- GDCquery(project =\TCGA-BRCA\,
+data.category = \Transcriptome Profiling\,
+data.type = \Gene Expression Quantification\,
+workflow.type = \STAR - Counts\)
 GDCdownload(rna_query)
 rna_se &lt;- GDCprepare(rna_query)</code></pre>
+<p>```</p>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
