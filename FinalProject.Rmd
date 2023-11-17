@@ -1,0 +1,129 @@
+---
+title: "QBIO Final Project: TCGA-HNSC"
+---
+
+
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/Users/kevinliu/Desktop/QBIO_490/Final Project/qbio_tcga_hnsc/analysis_data"))
+```
+
+```{r}
+# install, only if needed, and load packages (SummarizedExperiment and TCGAbiolinks)
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(version = "3.17")
+if (!require("TCGAbiolinks", quietly = TRUE))
+  BiocManager::install("TCGAbiolinks")
+if (!require("maftools", quietly = TRUE))
+  BiocManager::install("maftools")
+if (!require("DESeq2", quietly = TRUE))
+  BiocManager::install("DESeq2")
+if (!require("EnhancedVolcano", quietly = TRUE))
+  BiocManager::install("EnhancedVolcano")
+if (!require(survival)) {
+  install.packages("survival")}
+if (!require(survminer)) {
+  install.packages("survminer")}
+if (!require(mltools)) {
+  install.packages("dplyr")}
+
+library(BiocManager)
+library(TCGAbiolinks)
+library(maftools)
+library(ggplot2)
+library (SummarizedExperiment)
+library(DESeq2)
+library(EnhancedVolcano)
+library(survminer)
+library(survival)
+library(dplyr)
+
+```
+
+
+```{r}
+#neccessary downloads and preparation for clinical files
+
+clin_query <- GDCquery(project = "TCGA-HNSC",
+                       data.category = "Clinical",
+                       data.type = "Clinical Supplement",
+                       data.format = 'BCR Biotab')
+GDCdownload(clin_query)
+clinical.BCRtab.all <- GDCprepare(clin_query)  
+clinic <- clinical.BCRtab.all$clinical_patient_hnsc[-c(1,2),]
+
+colnames(clinic)[ colnames(clinic) == "bcr_patient_barcode" ] <- "Tumor_Sample_Barcode"
+
+write.csv(clinic, "/Users/kevinliu/desktop/qbio_490/QBIO_490_kevinliu/analysis_data/hnsc_clinical_data.csv", row.names=FALSE)
+
+clinic <- read.csv("/Users/kevinliu/desktop/qbio_490/QBIO_490_kevinliu/analysis_data/hnsc_clinical_data.csv")
+
+
+```
+
+
+
+```{r}
+#neccessary downloads and preparation for rna_se files
+
+rna_query <- GDCquery(project ="TCGA-HNSC",
+                      data.category = "Transcriptome Profiling",
+                      data.type = "Gene Expression Quantification",
+                      workflow.type = "STAR - Counts")
+GDCdownload(rna_query)
+rna_se <- GDCprepare(rna_query)
+
+rna_clinical <- rna_se@colData
+rna_clinical <- as.data.frame(rna_clinical)
+rna_clinical$Tumor_Sample_Barcode <- rna_clinical$patient
+
+```
+
+
+```{r}
+#neccessary downloads and preparation for MAF files
+
+clinical <- read.csv("/Users/kevinliu/desktop/qbio_490/QBIO_490_kevinliu/analysis_data/hnsc_clinical_data.csv")
+colnames(clinical)[ colnames(clinical) == "bcr_patient_barcode" ] <- "Tumor_Sample_Barcode"
+write.csv(clinical, "/Users/kevinliu/desktop/qbio_490/QBIO_490_kevinliu/analysis_data/hnsc_clinical_data.csv", row.names = FALSE)
+
+maf_query <- GDCquery(
+  project = "TCGA-HNSC", 
+  data.category = "Simple Nucleotide Variation", 
+  access = "open", # we only have access to somatic mutations which are open access
+  data.type = "Masked Somatic Mutation", 
+  workflow.type = "Aliquot Ensemble Somatic Variant Merging and Masking"
+)
+
+GDCdownload(maf_query)
+
+maf <- GDCprepare(maf_query) # as long as it runs, ignore any errors
+
+maf_object <- read.maf(maf = maf, 
+                       clinicalData = rna_clinical,
+                       isTCGA = TRUE)
+```
+
+
+Investigate the different groups of smokers/drinkers
+```{r}
+#colnames(rna_clinical)
+
+#rna_clinical$cigarettes_per_day
+
+#rna_clinical$alcohol_history
+
+#rna_clinical$pack_years_smoked
+
+mask_alc <- ifelse(rna_clinical$alcohol_history == "Yes", TRUE, FALSE)
+mask_noalc <- ifelse(rna_clinical$alcohol_history == "No", TRUE, FALSE)
+
+both <- rna_clinical[mask_alc, ]
+both <- both[!is.na(both$cigarettes_per_day), ]
+
+alc_only <- rna_clinical[mask_alc, ]
+alc_only <- alc_only[is.na(alc_only$cigarettes_per_day), ]
+
+cig_only <- rna_clinical[mask_noalc, ]
+cig_only <- cig_only[!is.na(cig_only$cigarettes_per_day), ]
+```
