@@ -1,0 +1,495 @@
+---
+title: "QBIO Final Project: TCGA-HNSC"
+---
+
+
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("//wsl.localhost/Ubuntu/root/qbio_490_tritong/analysis_data"))
+```
+
+```{r}
+# install, only if needed, and load packages (SummarizedExperiment and TCGAbiolinks)
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(version = "3.17")
+if (!require("TCGAbiolinks", quietly = TRUE))
+  BiocManager::install("TCGAbiolinks")
+if (!require("maftools", quietly = TRUE))
+  BiocManager::install("maftools")
+if (!require("DESeq2", quietly = TRUE))
+  BiocManager::install("DESeq2")
+if (!require("EnhancedVolcano", quietly = TRUE))
+  BiocManager::install("EnhancedVolcano")
+if (!require(survival)) {
+  install.packages("survival")}
+if (!require(survminer)) {
+  install.packages("survminer")}
+if (!require(mltools)) {
+  install.packages("dplyr")}
+
+library(BiocManager)
+library(TCGAbiolinks)
+library(maftools)
+library(ggplot2)
+library (SummarizedExperiment)
+library(DESeq2)
+library(EnhancedVolcano)
+library(survminer)
+library(survival)
+library(dplyr)
+
+```
+
+
+```{r}
+#neccessary downloads and preparation for clinical files
+
+clin_query <- GDCquery(project = "TCGA-HNSC",
+                       data.category = "Clinical",
+                       data.type = "Clinical Supplement",
+                       data.format = 'BCR Biotab')
+GDCdownload(clin_query)
+clinical.BCRtab.all <- GDCprepare(clin_query)  
+clinic <- clinical.BCRtab.all$clinical_patient_hnsc[-c(1,2),]
+
+colnames(clinic)[ colnames(clinic) == "bcr_patient_barcode" ] <- "Tumor_Sample_Barcode"
+
+write.csv(clinic, "//wsl.localhost/Ubuntu/root/qbio_490_tritong/analysis_data/hnsc_clinical_data.csv", row.names=FALSE)
+
+clinic <- read.csv("//wsl.localhost/Ubuntu/root/qbio_490_tritong/analysis_data/hnsc_clinical_data.csv")
+
+```
+Treatment types
+```{r}
+rad <- clinical.BCRtab.all$clinical_radiation_hnsc[-c(1,2),]
+drug <- clinical.BCRtab.all$clinical_drug_hnsc[-c(1,2),]
+```
+
+
+```{r}
+#neccessary downloads and preparation for rna_se files
+
+rna_query <- GDCquery(project ="TCGA-HNSC",
+                      data.category = "Transcriptome Profiling",
+                      data.type = "Gene Expression Quantification",
+                      workflow.type = "STAR - Counts")
+GDCdownload(rna_query)
+rna_se <- GDCprepare(rna_query)
+
+rna_clinical <- rna_se@colData
+rna_clinical <- as.data.frame(rna_clinical)
+rna_clinical$Tumor_Sample_Barcode <- rna_clinical$patient
+
+```
+
+
+```{r}
+#neccessary downloads and preparation for MAF files
+
+clinical <- read.csv("//wsl.localhost/Ubuntu/root/qbio_490_tritong/analysis_data/hnsc_clinical_data.csv")
+colnames(clinical)[ colnames(clinical) == "bcr_patient_barcode" ] <- "Tumor_Sample_Barcode"
+write.csv(clinical, "//wsl.localhost/Ubuntu/root/qbio_490_tritong/analysis_data/hnsc_clinical_data.csv", row.names = FALSE)
+
+maf_query <- GDCquery(
+  project = "TCGA-HNSC", 
+  data.category = "Simple Nucleotide Variation", 
+  access = "open", # we only have access to somatic mutations which are open access
+  data.type = "Masked Somatic Mutation", 
+  workflow.type = "Aliquot Ensemble Somatic Variant Merging and Masking"
+)
+
+GDCdownload(maf_query)
+
+maf <- GDCprepare(maf_query) # as long as it runs, ignore any errors
+
+maf_object <- read.maf(maf = maf, 
+                       clinicalData = rna_clinical,
+                       isTCGA = TRUE)
+```
+
+
+Investigate the different groups of smokers/drinkers
+```{r}
+#colnames(rna_clinical)
+
+#rna_clinical$cigarettes_per_day
+
+#rna_clinical$alcohol_history
+
+#rna_clinical$pack_years_smoked
+
+mask_alc <- ifelse(rna_clinical$alcohol_history == "Yes", TRUE, FALSE)
+mask_noalc <- ifelse(rna_clinical$alcohol_history == "No", TRUE, FALSE)
+
+both <- rna_clinical[mask_alc, ]
+both <- both[!is.na(both$cigarettes_per_day), ]
+
+alc_only <- rna_clinical[mask_alc, ]
+alc_only <- alc_only[is.na(alc_only$cigarettes_per_day), ]
+
+cig_only <- rna_clinical[mask_noalc, ]
+cig_only <- cig_only[!is.na(cig_only$cigarettes_per_day), ]
+
+
+## Create columns in rna_clinical to represent the filtered df above
+
+# both alcohol and cigs column
+rna_clinical$both_alc_cig <- ifelse(rna_clinical$patient %in% both$patient, "Yes", "No")
+
+# Alcohol only column
+rna_clinical$alc_only <- ifelse(rna_clinical$patient %in% alc_only$patient, "Yes", "No")
+
+# Cigs only column
+rna_clinical$cig_only <- ifelse(rna_clinical$patient %in% cig_only$patient, "Yes", "No")
+
+# Usage column to classify patients into 4 categories
+rna_clinical$usage <- ifelse(rna_clinical$patient %in% both$patient, "Both", 
+                             ifelse(rna_clinical$patient %in% alc_only$patient, "Alcohol", 
+                                    ifelse(rna_clinical$patient %in% 
+                                             cig_only$patient, "Cigarettes", "None")))
+```
+
+Survival Plot for Alc+Cigs vs. Alc-only users
+```{r}
+# Select only for patients use Alc+Cigs and Alc-only
+both_A_mask <- ifelse(rna_clinical$usage == "Both" |
+                           rna_clinical$usage == "Alcohol", T, F)
+both_A_df = rna_clinical[both_A_mask,]
+
+# Create survival_time column in both_df to make survival plot
+both_A_df$survival_time <- ifelse(both_A_df$days_to_death == "NA",
+                                both_A_df$days_to_last_follow_up,
+                                both_A_df$days_to_death)
+# unique(both_df$survival_time) indicates there are still NA values
+both_A_NA_mask <- ifelse(both_A_df$survival_time == "NA", F, T)
+both_A_df[both_A_NA_mask,]
+
+# Create survival event column (T/F) for survival plot --> T is dead, F is alive
+both_A_df$death_event <- ifelse(both_A_df$vital_status == "Alive", F, T)
+
+survival_object <- Surv(time = as.numeric(both_A_df$survival_time), event = both_A_df$death_event)
+fit_object <- survfit(survival_object ~ usage, data = both_A_df)
+survplot1 <- ggsurvplot(fit_object, pval = TRUE, ggtheme =
+                         theme(plot.margin = unit(c(1,1,1,1), "cm")), legend = 'right')
+survplot1
+```
+
+Survival Plot of Alc+Cigs vs. Cigs-only user
+```{r}
+both_C_mask <- ifelse(rna_clinical$usage == "Cigarettes" |
+                           rna_clinical$usage == "Both", T, F)
+both_C_df = rna_clinical[both_C_mask,]
+
+# Create survival_time column in both_df to make survival plot
+both_C_df$survival_time <- ifelse(both_C_df$days_to_death == "NA",
+                                both_C_df$days_to_last_follow_up,
+                                both_C_df$days_to_death)
+# unique(both_df$survival_time) indicates there are still NA values
+both_C_NA_mask <- ifelse(both_C_df$survival_time == "NA", F, T)
+both_C_df[both_C_NA_mask,]
+
+# Create survival event column (T/F) for survival plot --> T is dead, F is alive
+both_C_df$death_event <- ifelse(both_C_df$vital_status == "Alive", F, T)
+
+survival_object <- Surv(time = as.numeric(both_C_df$survival_time), event = both_C_df$death_event)
+fit_object <- survfit(survival_object ~ usage, data = both_C_df)
+survplot2 <- ggsurvplot(fit_object, pval = TRUE, ggtheme =
+                         theme(plot.margin = unit(c(1,1,1,1), "cm")), legend = 'right')
+survplot2
+```
+
+Survival Plot of Alc-only vs. Cigs-only user
+```{r}
+# Select only for patients use Alc+Cigs and Alc-only
+both_A_mask <- ifelse(rna_clinical$usage == "Both" |
+                           rna_clinical$usage == "Alcohol", T, F)
+both_A_df = rna_clinical[both_A_mask,]
+
+# Create survival_time column in both_df to make survival plot
+both_A_df$survival_time <- ifelse(both_A_df$days_to_death == "NA",
+                                both_A_df$days_to_last_follow_up,
+                                both_A_df$days_to_death)
+# unique(both_df$survival_time) indicates there are still NA values
+both_A_NA_mask <- ifelse(both_A_df$survival_time == "NA", F, T)
+both_A_df[both_A_NA_mask,]
+
+# Create survival event column (T/F) for survival plot --> T is dead, F is alive
+both_A_df$death_event <- ifelse(both_A_df$vital_status == "Alive", F, T)
+
+survival_object <- Surv(time = as.numeric(both_A_df$survival_time), event = both_A_df$death_event)
+fit_object <- survfit(survival_object ~ usage, data = both_A_df)
+survplot1 <- ggsurvplot(fit_object, pval = TRUE, ggtheme =
+                         theme(plot.margin = unit(c(1,1,1,1), "cm")), legend = 'right')
+survplot1
+```
+
+Survival Plot of Alc-only vs. Cigs-only user
+```{r}
+# Select only for alc-only and cigs-only patients
+only_mask <- ifelse(rna_clinical$usage == "Cigarettes" |
+                           rna_clinical$usage == "Alcohol", T, F)
+only_df = rna_clinical[only_mask,]
+
+# Create survival_time column in both_df to make survival plot
+only_df$survival_time <- ifelse(only_df$days_to_death == "NA",
+                                only_df$days_to_last_follow_up,
+                                only_df$days_to_death)
+# unique(both_df$survival_time) indicates there are still NA values
+only_NA_mask <- ifelse(only_df$survival_time == "NA", F, T)
+only_df[only_NA_mask,]
+
+# Create survival event column (T/F) for survival plot --> T is dead, F is alive
+only_df$death_event <- ifelse(only_df$vital_status == "Alive", F, T)
+
+survival_object <- Surv(time = as.numeric(only_df$survival_time), event = only_df$death_event)
+fit_object <- survfit(survival_object ~ usage, data = only_df)
+survplot3 <- ggsurvplot(fit_object, pval = TRUE, ggtheme =
+                         theme(plot.margin = unit(c(1,1,1,1), "cm")), legend = 'right')
+survplot3
+
+```
+
+Co-oncoplots Both vs. Alcohol-only
+```{r}
+# both alcohol and cigs column for maf_object
+maf_object@clinical.data$both_usage <- ifelse(maf_object@clinical.data$patient %in%
+                                                both$patient, "Yes", "No")
+
+# Alcohol only column for maf_object
+maf_object@clinical.data$alc_usage <- ifelse(maf_object@clinical.data$patient %in%
+                                                alc_only$patient, "Yes", "No")
+
+# Cigs only column for maf_object
+maf_object@clinical.data$cig_usage <- ifelse(maf_object@clinical.data$patient %in%
+                                                cig_only$patient, "Yes", "No")
+
+
+# Boolean masking and subsetmaf for patients that do both
+both_mask <- ifelse(maf_object@clinical.data$both_usage == 'Yes', T, F)
+both_patients <- maf_object@clinical.data$patient[both_mask]
+both_maf <- subsetMaf(maf = maf_object,
+                         tsb = both_patients)
+# Boolean masking and subsetmaf for patients that do alc only
+alc_mask <- ifelse(maf_object@clinical.data$alc_usage == 'Yes', T, F)
+alc_patients <- maf_object@clinical.data$patient[alc_mask]
+alc_maf <- subsetMaf(maf = maf_object,
+                         tsb = alc_patients)
+# Boolean masking and subsetmaf for patients that do cig only
+cig_mask <- ifelse(maf_object@clinical.data$cig_usage == 'Yes', T, F)
+cig_patients <- maf_object@clinical.data$patient[cig_mask]
+cig_maf <- subsetMaf(maf = maf_object,
+                         tsb = cig_patients)
+
+# Make the coOncoplot with the given subsets for both vs. alcohol only
+cancerType_plot <- coOncoplot(m1 = both_maf, 
+           m2 = alc_maf,
+           m1Name = 'Both Usage 
+           Patients', 
+           m2Name = 'Alcohol-only 
+           Patients', 
+           borderCol = NA,
+           geneNamefont = 0.5,
+           gene_mar = 2,
+           titleFontSize = 1)
+
+```
+Co-oncoplots for Both vs. cig-only
+```{r}
+cancerType_plot2 <- coOncoplot(m1 = both_maf, 
+           m2 = cig_maf,
+           m1Name = 'Both Usage 
+           Patients', 
+           m2Name = 'Cigarettes-only 
+           Patients', 
+           borderCol = NA,
+           geneNamefont = 0.5,
+           gene_mar = 2,
+           titleFontSize = 1)
+```
+Co-oncoplots for Alc-only vs. cig-only
+```{r}
+cancerType_plot3 <- coOncoplot(m1 = alc_maf, 
+           m2 = cig_maf,
+           m1Name = 'Alcohol-only 
+           Patients', 
+           m2Name = 'Cigarettes-only 
+           Patients', 
+           borderCol = NA,
+           geneNamefont = 0.5,
+           gene_mar = 2,
+           titleFontSize = 1)
+```
+Somatic Interaction Plots
+```{r}
+# Create somatic interaction plots for top 25 genes of patients that use both alc+cig using subsetMaf performed earlier
+somaticInteractions(maf = both_maf,
+                    top = 25,
+                    pvalue = c(0.05, 0.1))
+
+# Create somatic interaction plots for top 25 genes of patients that use alc-only via subsetMaf performed earlier
+somaticInteractions(maf = alc_maf,
+                    top = 25,
+                    pvalue = c(0.05, 0.1))
+
+# Create somatic interaction plots for top 25 genes of patients that use cig-only via subsetMaf performed earlier
+somaticInteractions(maf = cig_maf,
+                    top = 25,
+                    pvalue = c(0.05, 0.1))
+```
+
+Lollipop Plot
+```{r}
+# Create a lollipop plot using the subsetMafs above and selecting the gene of interest, which was obtained by looking at the coOncoplot from above
+lollipopPlot2(m1 = alc_maf,
+             m2 = cig_maf,
+             m1_name = "Alcohol-only Patients",
+             m2_name = "Cigarettes-only Patients",
+             gene = 'TTN')
+```
+
+
+DESeq2 Alc-only vs. Cig-only
+```{r}
+### RNA_GENES ###
+rna_genes <- rna_se@rowRanges@elementMetadata
+rna_genes <- as.data.frame(rna_genes)
+
+### RNA_COUNTS ###
+rna_counts <- rna_se@assays@data$unstranded
+rna_counts <- as.data.frame(rna_counts)
+
+# Add rows and column names for better readability
+rownames(rna_genes) <- rna_genes$gene_id
+rownames(rna_counts) <- rna_genes$gene_id
+colnames(rna_counts) <- rownames(rna_clinical)
+
+# Will be comparing alc-only vs. cig-only, so only select for these two groups
+comparing_mask1 <- ifelse(rna_clinical$usage == 'Alcohol'|
+                           rna_clinical$usage == 'Cigarettes', T, F)
+# Apply mask to new df rna_clinical1
+rna_clinical1 <- rna_clinical[comparing_mask1,]
+# Update mask to new df rna_counts1 as well
+rna_counts1 <- rna_counts[,comparing_mask1]
+
+# factorize the comparing variable - rna_clinical$definition
+rna_clinical1$usage <- factor(rna_clinical1$usage)
+
+# Select only patients in rad & drug that exists in rna_clinical1
+selected_rad <- semi_join(rad, rna_clinical1, by = c("bcr_patient_barcode" = "Tumor_Sample_Barcode"))
+selected_drug <- semi_join(drug, rna_clinical1, by = c("bcr_patient_barcode" = "Tumor_Sample_Barcode"))
+
+### One-Hot encoding to include treatments as covariance
+# If data is not NA in days since radiation started, put a 1 for radiation treatment, else 0, check that their ID is in rna_clinical as well
+rna_clinical1$radiation <- ifelse(rna_clinical1$Tumor_Sample_Barcode %in% selected_rad$bcr_patient_barcode & !is.na(selected_rad$radiation_therapy_started_days_to), 1, 0)
+
+# Select for chemotherapy treatment as 1 if the pt ID matches in rna_clinical and therapy type is chemo, else 0 as a new column
+rna_clinical1$chemo <- ifelse(rna_clinical1$Tumor_Sample_Barcode %in% selected_drug$bcr_patient_barcode & (selected_drug$pharmaceutical_therapy_type == 'Chemotherapy' | selected_drug$pharmaceutical_therapy_type == 'Chemotherapy|Targeted Molecular therapy'), 1, 0)
+
+# Select for immunotherapy as 1, or no as 0 as a new column
+rna_clinical1$immuno <- ifelse(rna_clinical1$Tumor_Sample_Barcode %in% selected_drug$bcr_patient_barcode & selected_drug$pharmaceutical_therapy_type == 'Immunotherapy', 1, 0)
+
+# Select for vaccine as 1, or no as 0 as new column
+rna_clinical1$vaccine <- ifelse(rna_clinical1$Tumor_Sample_Barcode %in% selected_drug$bcr_patient_barcode & selected_drug$pharmaceutical_therapy_type == 'Vaccine', 1, 0)
+
+# Select for molecular therapy as 1, or no as 0 as new column
+rna_clinical1$moleculo <- ifelse(rna_clinical1$Tumor_Sample_Barcode %in% selected_drug$bcr_patient_barcode & (selected_drug$pharmaceutical_therapy_type == 'Targeted Molecular therapy' | selected_drug$pharmaceutical_therapy_type == 'Chemotherapy|Targeted Molecular therapy'), 1, 0)
+
+# Control for covariance in different treatments
+rna_clinical1$radiation <- factor(rna_clinical1$radiation)
+rna_clinical1$chemo <- factor(rna_clinical1$chemo)
+rna_clinical1$immuno <- factor(rna_clinical1$immuno)
+rna_clinical1$vaccine <- factor(rna_clinical1$vaccine)
+rna_clinical1$moleculo <- factor(rna_clinical1$moleculo)
+# Control for covariance in gender
+rna_clinical1$gender <- factor(rna_clinical1$gender)
+# Control for covariance in race
+rna_clinical1$race <- factor(rna_clinical1$race)
+# Control for covariance in vital_status
+rna_clinical1$vital_status <- factor(rna_clinical1$vital_status)
+# Control for covariance in definition
+rna_clinical1$definition <- factor(rna_clinical1$definition)
+
+# Check for NA values in comparing variable and covariances
+sum(is.na(rna_clinical1$usage)) # 0 NA
+sum(is.na(rna_clinical1$gender)) # 0 NA
+sum(is.na(rna_clinical1$race)) # 0 NA
+sum(is.na(rna_clinical1$vital_status)) # 0 NA
+sum(is.na(rna_clinical1$definition)) # 0 NA
+
+sum(is.na(rna_clinical1$radiation)) # 0 NA
+sum(is.na(rna_clinical1$chemo)) # 0 NA
+sum(is.na(rna_clinical1$immuno)) # 0 NA
+sum(is.na(rna_clinical1$vaccine)) # 0 NA
+sum(is.na(rna_clinical1$moleculo)) # 0 NA
+
+# Processing rna_counts df
+row_sums <- rowSums(rna_counts1)
+low_counts_mask <- ifelse(row_sums > 20, T, F)
+# filter out rna_counts + rna_genes for only more than 20
+rm_low_counts <- rna_counts1[low_counts_mask,]
+rm_low_genes <- rna_genes[low_counts_mask,]
+
+
+# immuno - only 0s
+# vaccine - only 0s
+# moleculo - only 0s
+
+# Running DESeq2
+# dds <- DESeqDataSetFromMatrix(countData = rm_low_counts,
+#                              colData = rna_clinical1,
+#                              design = ~gender + race + vital_status + definition +
+#                                chemo + immuno + vaccine + moleculo + radiation + usage)
+
+dds <- DESeqDataSetFromMatrix(countData = rm_low_counts,
+                             colData = rna_clinical1,
+                             design = ~gender + race + vital_status + definition +
+                               chemo + radiation + usage)
+dds_obj <- DESeq(dds)
+# Review which comparison was done
+resultsNames(dds_obj)
+```
+
+Analyze DESeq2 Resutls (Alc-only vs. Cig-only)
+```{r}
+# Saving comparison results
+results <- results(dds_obj, format = "DataFrame", contrast = c("usage",'Alcohol', 'Cigarettes'))
+
+# Analyzing results
+results <- data.frame(rm_low_genes$gene_name, results@rownames,
+                      results$log2FoldChange, results$pvalue, 
+                      results$padj, -log10(results$padj))
+colnames(results) <- c('Gene Name', 'Gene ID', 'log2FoldChange',
+                       'pvalue', 'padj','-log10(padj)')
+# Select only genes that have p-adj < 0.05
+significant_mask <- ifelse(results$padj < 0.05, T, F)
+sig_results <- results[significant_mask,]
+
+sig_NA_mask <- ifelse(is.na(sig_results$`Gene Name`), F, T)
+sig_results <- sig_results[sig_NA_mask, ]
+```
+
+```{r}
+par(mar=c(1,1,1,1))
+ev1 <- EnhancedVolcano(sig_results,
+    lab = sig_results$`Gene Name`,
+    x = 'log2FoldChange',
+    y = 'pvalue',
+    title = 'Alcohol-only vs. Cigarettes-only',
+    titleLabSize = 10,
+    subtitleLabSize = 6,
+    captionLabSize = 5,
+    axisLabSize = 10,
+    legendPosition = "right",
+    legendLabSize = 10,
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+    pCutoff = 0.05, # 10e-32 #1.3
+    FCcutoff = 1, # 0.5
+    cutoffLineType = 'longdash',
+    pointSize = 1.5, # 3.0
+    ylim = c(0, -log10(10e-17)),
+    labSize = 3) # 6.0
+
+ev1
+```
+

@@ -4,8 +4,9 @@ title: "QBIO Final Project: TCGA-HNSC"
 
 
 ```{r setup}
-    knitr::opts_knit$set(root.dir = normalizePath("/Users/kevinliu/Desktop/QBIO_490/Final Project/qbio_tcga_hnsc/analysis_data"))
+    knitr::opts_knit$set(root.dir = normalizePath("//wsl.localhost/Ubuntu/root/qbio_490_tritong/analysis_data"))
 ```
+
 
 ```{r}
 # install, only if needed, and load packages (SummarizedExperiment and TCGAbiolinks)
@@ -48,15 +49,15 @@ clin_query <- GDCquery(project = "TCGA-HNSC",
                        data.category = "Clinical",
                        data.type = "Clinical Supplement",
                        data.format = 'BCR Biotab')
-GDCdownload(clin_query)
+#GDCdownload(clin_query)
 clinical.BCRtab.all <- GDCprepare(clin_query)  
 clinic <- clinical.BCRtab.all$clinical_patient_hnsc[-c(1,2),]
 
 colnames(clinic)[ colnames(clinic) == "bcr_patient_barcode" ] <- "Tumor_Sample_Barcode"
 
-write.csv(clinic, "/Users/kevinliu/desktop/qbio_490/QBIO_490_kevinliu/analysis_data/hnsc_clinical_data.csv", row.names=FALSE)
+write.csv(clinic, "//wsl.localhost/Ubuntu/root/qbio_490_tritong/analysis_data/hnsc_clinical_data.csv", row.names=FALSE)
 
-clinic <- read.csv("/Users/kevinliu/desktop/qbio_490/QBIO_490_kevinliu/analysis_data/hnsc_clinical_data.csv")
+clinic <- read.csv("//wsl.localhost/Ubuntu/root/qbio_490_tritong/analysis_data/hnsc_clinical_data.csv")
 
 
 ```
@@ -83,9 +84,9 @@ rna_clinical$Tumor_Sample_Barcode <- rna_clinical$patient
 ```{r}
 #neccessary downloads and preparation for MAF files
 
-clinical <- read.csv("/Users/kevinliu/desktop/qbio_490/QBIO_490_kevinliu/analysis_data/hnsc_clinical_data.csv")
+clinical <- read.csv("//wsl.localhost/Ubuntu/root/qbio_490_tritong/analysis_data/hnsc_clinical_data.csv")
 colnames(clinical)[ colnames(clinical) == "bcr_patient_barcode" ] <- "Tumor_Sample_Barcode"
-write.csv(clinical, "/Users/kevinliu/desktop/qbio_490/QBIO_490_kevinliu/analysis_data/hnsc_clinical_data.csv", row.names = FALSE)
+write.csv(clinical, "//wsl.localhost/Ubuntu/root/qbio_490_tritong/analysis_data/hnsc_clinical_data.csv", row.names = FALSE)
 
 maf_query <- GDCquery(
   project = "TCGA-HNSC", 
@@ -127,3 +128,38 @@ alc_only <- alc_only[is.na(alc_only$cigarettes_per_day), ]
 cig_only <- rna_clinical[mask_noalc, ]
 cig_only <- cig_only[!is.na(cig_only$cigarettes_per_day), ]
 ```
+
+Survival Plot for alc only, cig only, and both
+```{r}
+### Cleaning and Prepping rna_clinical$definition column for meta and non-metastatic ###
+# Remove any patients with no definition information
+def_na_mask <- ifelse(is.na(maf_object@clinical.data$definition), F, T)
+cleaned_def <- maf_object@clinical.data[def_na_mask,]
+
+# Select only meta and non-metastatic patients
+meta_nonmeta_mask <- ifelse(cleaned_def$definition == 'Metastatic' | 
+                              cleaned_def$definition == 'Primary solid Tumor', T, F)
+cleaned_def <- cleaned_def[meta_nonmeta_mask,]
+
+# Create a survival time column for the survival plot
+cleaned_def$survival_time <- ifelse(cleaned_def$days_to_death == 'NA',
+                                   cleaned_def$days_to_last_follow_up,
+                                   cleaned_def$days_to_death)
+# Remove potential -Inf values of survival time
+inf_mask <- ifelse(cleaned_def$survival_time == '-Inf', F, T)
+cleaned_def <- cleaned_def[inf_mask,]
+
+# Create survival event (T/F) column for survival plots, # T if pt is dead, F if alive
+cleaned_def$death_event <- ifelse(cleaned_def$vital_status == 'Alive', F, T)
+
+survival_object <- Surv(time = as.numeric(cleaned_def$survival_time), event = cleaned_def$death_event)
+
+fit_object <- survfit(survival_object ~ definition, data = cleaned_def)
+
+survplot <- ggsurvplot(fit_object, pval = TRUE, ggtheme =
+                         theme(plot.margin = unit(c(1,1,1,1), "cm")), legend = 'right')
+
+survplot
+```
+```
+
