@@ -110,51 +110,53 @@ maf_object <- read.maf(maf = maf,
 
 Investigate the different groups of smokers/drinkers
 ```{r}
-#colnames(rna_clinical)
-
-#rna_clinical$cigarettes_per_day
-
-#rna_clinical$alcohol_history
-
-#rna_clinical$pack_years_smoked
+# rna_clinical 566 x 84
 
 mask_alc <- ifelse(rna_clinical$alcohol_history == "Yes", TRUE, FALSE)
 mask_noalc <- ifelse(rna_clinical$alcohol_history == "No", TRUE, FALSE)
 
 both <- rna_clinical[mask_alc, ]
-both <- both[!is.na(both$cigarettes_per_day), ]
+both <- both[!is.na(both$cigarettes_per_day) | 
+               !is.na(both$years_smoked), ]
 
 alc_only <- rna_clinical[mask_alc, ]
-alc_only <- alc_only[is.na(alc_only$cigarettes_per_day), ]
+alc_only <- alc_only[is.na(alc_only$cigarettes_per_day) & is.na(alc_only$years_smoked), ]
 
 cig_only <- rna_clinical[mask_noalc, ]
-cig_only <- cig_only[!is.na(cig_only$cigarettes_per_day), ]
+cig_only <- cig_only[(!is.na(cig_only$cigarettes_per_day) |
+                       !is.na(cig_only$years_smoked)), ]
 
+# DF containing pt that does neither
+none <- rna_clinical[mask_noalc, ]
+none <- none[is.na(none$cigarettes_per_day) & is.na(none$years_smoked), ]
 
-## Create columns in rna_clinical to represent the filtered df above
+# Any patients not in None df
+any <- rna_clinical[!(rna_clinical$patient %in% none$patient), ]
 
-# both alcohol and cigs column
-rna_clinical$both_alc_cig <- ifelse(rna_clinical$patient %in% both$patient, "Yes", "No")
+missing <- any[!(any$patient %in% alc_only$patient) &
+                 !(any$patient %in% cig_only$patient) &
+                 !(any$patient %in% both$patient), ]
 
-# Alcohol only column
-rna_clinical$alc_only <- ifelse(rna_clinical$patient %in% alc_only$patient, "Yes", "No")
-
-# Cigs only column
-rna_clinical$cig_only <- ifelse(rna_clinical$patient %in% cig_only$patient, "Yes", "No")
+# Actual dataset to use after removing the "Not Reported" group
+any_cleaned <- any[!(any$patient %in% missing$patient),]
+clinical_cleaned <- rna_clinical[!(rna_clinical$patient %in% missing$patient), ]
+none_cleaned <- clinical_cleaned[!(clinical_cleaned$patient %in% any_cleaned$patient), ]
 
 # Usage column to classify patients into 4 categories
-rna_clinical$usage <- ifelse(rna_clinical$patient %in% both$patient, "Both", 
-                             ifelse(rna_clinical$patient %in% alc_only$patient, "Alcohol", 
-                                    ifelse(rna_clinical$patient %in% 
+clinical_cleaned$usage <- ifelse(clinical_cleaned$patient %in% both$patient, "Both", 
+                             ifelse(clinical_cleaned$patient %in% alc_only$patient, "Alcohol", 
+                                    ifelse(clinical_cleaned$patient %in% 
                                              cig_only$patient, "Cigarettes", "None")))
+
+clinical_cleaned$split <- ifelse(clinical_cleaned$patient %in% any_cleaned$patient, "Any", "None")
 ```
 
 Survival Plot for Alc+Cigs vs. Alc-only users
 ```{r}
 # Select only for patients use Alc+Cigs and Alc-only
-both_A_mask <- ifelse(rna_clinical$usage == "Both" |
-                           rna_clinical$usage == "Alcohol", T, F)
-both_A_df = rna_clinical[both_A_mask,]
+both_A_mask <- ifelse(clinical_cleaned$usage == "Both" |
+                          clinical_cleaned$usage == "Alcohol", T, F)
+both_A_df = clinical_cleaned[both_A_mask,]
 
 # Create survival_time column in both_df to make survival plot
 both_A_df$survival_time <- ifelse(both_A_df$days_to_death == "NA",
@@ -176,9 +178,9 @@ survplot1
 
 Survival Plot of Alc+Cigs vs. Cigs-only user
 ```{r}
-both_C_mask <- ifelse(rna_clinical$usage == "Cigarettes" |
-                           rna_clinical$usage == "Both", T, F)
-both_C_df = rna_clinical[both_C_mask,]
+both_C_mask <- ifelse(clinical_cleaned$usage == "Cigarettes" |
+                           clinical_cleaned$usage == "Both", T, F)
+both_C_df = clinical_cleaned[both_C_mask,]
 
 # Create survival_time column in both_df to make survival plot
 both_C_df$survival_time <- ifelse(both_C_df$days_to_death == "NA",
@@ -200,10 +202,10 @@ survplot2
 
 Survival Plot of Alc-only vs. Cigs-only user
 ```{r}
-# Select only for patients use Alc+Cigs and Alc-only
-both_A_mask <- ifelse(rna_clinical$usage == "Both" |
-                           rna_clinical$usage == "Alcohol", T, F)
-both_A_df = rna_clinical[both_A_mask,]
+# Select only for patients use Cigs-only and Alc-only
+both_A_mask <- ifelse(clinical_cleaned$usage == "Cigarettes" |
+                           clinical_cleaned$usage == "Alcohol", T, F)
+both_A_df = clinical_cleaned[both_A_mask,]
 
 # Create survival_time column in both_df to make survival plot
 both_A_df$survival_time <- ifelse(both_A_df$days_to_death == "NA",
@@ -218,35 +220,34 @@ both_A_df$death_event <- ifelse(both_A_df$vital_status == "Alive", F, T)
 
 survival_object <- Surv(time = as.numeric(both_A_df$survival_time), event = both_A_df$death_event)
 fit_object <- survfit(survival_object ~ usage, data = both_A_df)
-survplot1 <- ggsurvplot(fit_object, pval = TRUE, ggtheme =
-                         theme(plot.margin = unit(c(1,1,1,1), "cm")), legend = 'right')
-survplot1
-```
-
-Survival Plot of Alc-only vs. Cigs-only user
-```{r}
-# Select only for alc-only and cigs-only patients
-only_mask <- ifelse(rna_clinical$usage == "Cigarettes" |
-                           rna_clinical$usage == "Alcohol", T, F)
-only_df = rna_clinical[only_mask,]
-
-# Create survival_time column in both_df to make survival plot
-only_df$survival_time <- ifelse(only_df$days_to_death == "NA",
-                                only_df$days_to_last_follow_up,
-                                only_df$days_to_death)
-# unique(both_df$survival_time) indicates there are still NA values
-only_NA_mask <- ifelse(only_df$survival_time == "NA", F, T)
-only_df[only_NA_mask,]
-
-# Create survival event column (T/F) for survival plot --> T is dead, F is alive
-only_df$death_event <- ifelse(only_df$vital_status == "Alive", F, T)
-
-survival_object <- Surv(time = as.numeric(only_df$survival_time), event = only_df$death_event)
-fit_object <- survfit(survival_object ~ usage, data = only_df)
 survplot3 <- ggsurvplot(fit_object, pval = TRUE, ggtheme =
                          theme(plot.margin = unit(c(1,1,1,1), "cm")), legend = 'right')
 survplot3
+```
+Survival Plot Any vs. None
+```{r}
 
+# Select only for patients use Alc+Cigs and None
+both_A_mask <- ifelse(clinical_cleaned$split == "Any" |
+                           clinical_cleaned$split == "None", T, F)
+both_A_df = clinical_cleaned[both_A_mask,]
+
+# Create survival_time column in both_df to make survival plot
+both_A_df$survival_time <- ifelse(both_A_df$days_to_death == "NA",
+                                both_A_df$days_to_last_follow_up,
+                                both_A_df$days_to_death)
+# unique(both_df$survival_time) indicates there are still NA values
+both_A_NA_mask <- ifelse(both_A_df$survival_time == "NA", F, T)
+both_A_df[both_A_NA_mask,]
+
+# Create survival event column (T/F) for survival plot --> T is dead, F is alive
+both_A_df$death_event <- ifelse(both_A_df$vital_status == "Alive", F, T)
+
+survival_object <- Surv(time = as.numeric(both_A_df$survival_time), event = both_A_df$death_event)
+fit_object <- survfit(survival_object ~ usage, data = both_A_df)
+survplot4 <- ggsurvplot(fit_object, pval = TRUE, ggtheme =
+                         theme(plot.margin = unit(c(1,1,1,1), "cm")), legend = 'right')
+survplot4
 ```
 
 Co-oncoplots Both vs. Alcohol-only
@@ -344,8 +345,10 @@ lollipopPlot2(m1 = alc_maf,
              m2 = cig_maf,
              m1_name = "Alcohol-only Patients",
              m2_name = "Cigarettes-only Patients",
-             gene = 'TTN')
+             gene = 'PIK3CA',
+             showDomainLabel = FALSE)
 ```
+
 
 
 DESeq2 Alc-only vs. Cig-only
@@ -434,16 +437,12 @@ rm_low_genes <- rna_genes[low_counts_mask,]
 # vaccine - only 0s
 # moleculo - only 0s
 
-# Running DESeq2
-# dds <- DESeqDataSetFromMatrix(countData = rm_low_counts,
-#                              colData = rna_clinical1,
-#                              design = ~gender + race + vital_status + definition +
-#                                chemo + immuno + vaccine + moleculo + radiation + usage)
+# overwhelmingly chemotherapy only as treatment, so no need to include in DESeq2
 
+# Running DESeq2
 dds <- DESeqDataSetFromMatrix(countData = rm_low_counts,
                              colData = rna_clinical1,
-                             design = ~gender + race + vital_status + definition +
-                               chemo + radiation + usage)
+                             design = ~gender + race + vital_status + definition + usage)
 dds_obj <- DESeq(dds)
 # Review which comparison was done
 resultsNames(dds_obj)
@@ -452,7 +451,7 @@ resultsNames(dds_obj)
 Analyze DESeq2 Resutls (Alc-only vs. Cig-only)
 ```{r}
 # Saving comparison results
-results <- results(dds_obj, format = "DataFrame", contrast = c("usage",'Alcohol', 'Cigarettes'))
+results <- results(dds_obj, format = "DataFrame", contrast = c("usage", 'Alcohol', 'Cigarettes'))
 
 # Analyzing results
 results <- data.frame(rm_low_genes$gene_name, results@rownames,
@@ -461,19 +460,21 @@ results <- data.frame(rm_low_genes$gene_name, results@rownames,
 colnames(results) <- c('Gene Name', 'Gene ID', 'log2FoldChange',
                        'pvalue', 'padj','-log10(padj)')
 # Select only genes that have p-adj < 0.05
-significant_mask <- ifelse(results$padj < 0.05, T, F)
-sig_results <- results[significant_mask,]
+# significant_mask <- ifelse(results$padj < 0.05, T, F)
+# sig_results <- results[significant_mask,]
+# 
+# sig_NA_mask <- ifelse(is.na(sig_results$`Gene Name`), F, T)
+# sig_results <- sig_results[sig_NA_mask, ]
 
-sig_NA_mask <- ifelse(is.na(sig_results$`Gene Name`), F, T)
-sig_results <- sig_results[sig_NA_mask, ]
 ```
+
 
 ```{r}
 par(mar=c(1,1,1,1))
-ev1 <- EnhancedVolcano(sig_results,
-    lab = sig_results$`Gene Name`,
+ev1 <- EnhancedVolcano(results,
+    lab = results$`Gene Name`,
     x = 'log2FoldChange',
-    y = 'pvalue',
+    y = 'padj',
     title = 'Alcohol-only vs. Cigarettes-only',
     titleLabSize = 10,
     subtitleLabSize = 6,
@@ -481,14 +482,14 @@ ev1 <- EnhancedVolcano(sig_results,
     axisLabSize = 10,
     legendPosition = "right",
     legendLabSize = 10,
-    gridlines.major = FALSE,
-    gridlines.minor = FALSE,
-    pCutoff = 0.05, # 10e-32 #1.3
+    # gridlines.major = FALSE,
+    # gridlines.minor = FALSE,
+    pCutoff = 0.05, # Only take absolute p-value, not -log10 version
     FCcutoff = 1, # 0.5
     cutoffLineType = 'longdash',
     pointSize = 1.5, # 3.0
-    ylim = c(0, -log10(10e-17)),
-    labSize = 3) # 6.0
+    ylim = c(0, -log10(10e-15)),
+    labSize = 1.5) # 6.0
 
 ev1
 ```
